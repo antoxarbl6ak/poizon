@@ -5,9 +5,8 @@ from dotenv import load_dotenv
 from os import getenv
 
 load_dotenv()
-with open("token.txt") as t:
-    bot = Bot(getenv("TOKEN"))
-    dp = Dispatcher()
+bot = Bot(getenv("TOKEN"))
+dp = Dispatcher()
 
 
 async def main():

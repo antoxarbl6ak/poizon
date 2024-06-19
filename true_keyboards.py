@@ -25,3 +25,10 @@ add_pair_ensure = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="correct", callback_data="add_pair_correct"),
      InlineKeyboardButton(text="wrong", callback_data="add_pair_wrong")]
 ])
+
+
+async def catalog_brands(brands):
+    kb = InlineKeyboardBuilder()
+    for brand in brands:
+        kb.add(InlineKeyboardButton(text=brand, callback_data=brand))
+    return kb.adjust(4).as_markup()

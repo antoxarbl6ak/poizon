@@ -44,6 +44,13 @@ async def get_info(callback: CallbackQuery):
                                      reply_markup=kb.back_to_start)
 
 
+@router.callback_query(F.data == "catalog")
+async def get_info(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.edit_text("choose the brand",
+                                     reply_markup=await kb.catalog_brands(db.sklad))
+
+
 @router.callback_query(F.data == "back_to_start")
 async def get_info(callback: CallbackQuery):
     await callback.answer()
