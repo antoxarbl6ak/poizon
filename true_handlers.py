@@ -31,14 +31,21 @@ class Choose(StatesGroup):
     name = State()
 
 
+class Remove(StatesGroup):
+    product = State()
+    sizes = State()
+
+
 @router.message(CommandStart())
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer("hello, this is our sneakers shop!", reply_markup=kb.start)
 
 
 @router.message(Command("admin"))
-async def cmd_admin(message: Message):
+async def cmd_admin(message: Message, state: FSMContext):
     if message.from_user.id == admin:
+        await state.clear()
         await message.answer("you opened admin panel", reply_markup=kb.admin)
 
 
@@ -97,6 +104,27 @@ async def add_pair1(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     db.add_pair_load(data)
     await callback.message.answer("pair was added\nyou opened admin panel", reply_markup=kb.admin)
+
+
+@router.callback_query(F.data == "remove_pair")
+async def remove_pair_request(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(Remove.product)
+    await callback.message.edit_text("send name of pair as in catalog")
+
+
+@router.message(Remove.product)
+async def remove_pair_choose(message: Message, state: FSMContext):
+    await state.update_data(product=message.text)
+    await state.set_state(Remove.sizes)
+    await message.answer("if you want remove all sizes send: all\nelse send all sizes you want to remove: 36 37 39")
+
+
+@router.message(Remove.sizes)
+async def remove_pair_actually(message: Message, state: FSMContext):
+    await state.update_data(sizes=message.text)
+    await message.answer(db.remove_pair(**await state.get_data()))
+    await state.clear()
 
 
 @router.callback_query(Choose.brand)

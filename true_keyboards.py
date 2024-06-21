@@ -14,7 +14,8 @@ back_to_start = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 admin = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="add pair", callback_data="add_pair")]
+    [InlineKeyboardButton(text="add pair", callback_data="add_pair"),
+     InlineKeyboardButton(text="remove pair", callback_data="remove_pair")]
 ])
 
 back_to_admin = InlineKeyboardMarkup(inline_keyboard=[
