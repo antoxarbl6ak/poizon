@@ -1,10 +1,16 @@
-from aiogram import F, Router
+from aiogram import F, Router, Bot
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+from os import getenv
+from dotenv import load_dotenv
 import true_keyboards as kb
 import db
+
+
+load_dotenv()
+bot = Bot(getenv("TOKEN"))
 
 router = Router()
 
@@ -18,6 +24,11 @@ class AddPair(StatesGroup):
     photo = State()
     price = State()
     sizes = State()
+
+
+class Choose(StatesGroup):
+    brand = State()
+    name = State()
 
 
 @router.message(CommandStart())
@@ -45,20 +56,22 @@ async def get_info(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "catalog")
-async def get_info(callback: CallbackQuery):
+async def get_info(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
+    await state.set_state(Choose.brand)
     await callback.message.edit_text("choose the brand",
                                      reply_markup=await kb.catalog_brands(db.sklad))
 
 
 @router.callback_query(F.data == "back_to_start")
-async def get_info(callback: CallbackQuery):
+async def get_info(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await callback.message.edit_text("hello, this is our sneakers shop!", reply_markup=kb.start)
+    await state.clear()
+    await cmd_start(callback.message)
 
 
 @router.callback_query(F.data == "back_to_admin")
-async def get_info(callback: CallbackQuery, state:FSMContext):
+async def get_info(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     await callback.message.edit_text("you opened admin panel", reply_markup=kb.admin)
@@ -86,6 +99,13 @@ async def add_pair1(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("pair was added\nyou opened admin panel", reply_markup=kb.admin)
 
 
+@router.callback_query(Choose.brand)
+async def choose_pair(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.update_data(brand=callback.data)
+    await state.set_state(Choose.name)
+
+
 @router.message(AddPair.brand)
 async def add_pair2(message: Message, state: FSMContext):
     await state.update_data(brand=message.text)
@@ -111,13 +131,13 @@ async def add_pair2(message: Message, state: FSMContext):
 async def add_pair2(message: Message, state: FSMContext):
     await state.update_data(price=message.text)
     await state.set_state(AddPair.sizes)
-    await message.answer("sizes in EU?\nlike: 39:6 40:7 41:6", reply_markup=kb.back_to_admin)
+    await message.answer("sizes in EU?", reply_markup=kb.back_to_admin)
 
 
 @router.message(AddPair.sizes)
 async def add_pair2(message: Message, state: FSMContext):
-    await state.update_data(sizes={x.split(':')[0]: int(x.split(':')[1]) for x in message.text.split()})
+    await state.update_data(sizes=message.text.split())
     data = await state.get_data()
     await message.answer_photo(photo=data["photo"],
-                               caption=f"{data['brand']}\n{data['name']}: {data['price']}\nsizes in stock: {' '.join(data['sizes'].keys())}",
+                               caption=f"{data['brand']}\n{data['name']}: {data['price']}\nsizes in stock: {' '.join(data['sizes'])}",
                                reply_markup=kb.add_pair_ensure)
