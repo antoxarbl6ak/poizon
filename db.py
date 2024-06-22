@@ -4,12 +4,12 @@ with open("sklad.json", 'r') as sr:
     sklad = json.load(sr)
 
 
-def upload_sklad():
+async def upload_sklad():
     with open("sklad.json", 'w') as sw:
         json.dump(sklad, sw)
 
 
-def add_pair_load(data: dict):
+async def add_pair_load(data: dict):
     if data["brand"] in sklad:
         if data["name"] in (x["name"] for x in sklad[data["brand"]]):
             i = max(j for j in range(len(sklad[data["brand"]])) if sklad[data["brand"]][j]["name"] == data["name"])
@@ -18,9 +18,10 @@ def add_pair_load(data: dict):
             sklad[data["brand"]].append({"name": data["name"], "photo": data["photo"], "price": data["price"], "sizes": data["sizes"]})
     else:
         sklad[data["brand"]] = [{"name": data["name"], "photo": data["photo"], "price": data["price"], "sizes": data["sizes"]}]
+    await upload_sklad()
 
 
-def remove_pair(product: str, sizes: str):
+async def remove_pair(product: str, sizes: str):
     for brand in sklad:
         i = max(j if sklad[brand][j]["name"] == product else -1 for j in range(len(sklad[brand])))
         if i + 1:
@@ -38,7 +39,13 @@ def remove_pair(product: str, sizes: str):
                 return "I couldn\'t find sizes:("
             if not len(sklad[brand]):
                 sklad.pop(brand)
-            upload_sklad()
+            await upload_sklad()
             return "was successfully removed"
     else:
         return "I couldn\'t find this:("
+
+
+async def choose_pair(brand, i, mode):
+    media = sklad[brand][i]["photo"]
+    caption = f"{brand}\n{sklad[brand][i]['name']}: {sklad[brand][i]['price']}p\nsizes: {' '.join(sklad[brand][i]['sizes'])}"
+    return {mode: media, "caption": caption}

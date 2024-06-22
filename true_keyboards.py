@@ -33,3 +33,14 @@ async def catalog_brands(brands):
     for brand in brands:
         kb.add(InlineKeyboardButton(text=brand, callback_data=brand))
     return kb.adjust(4).as_markup()
+
+
+async def move_pair(name, brand, i):
+    mp = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="left", callback_data=f"left_{brand}_{i}"),
+         InlineKeyboardButton(text=name, callback_data=f"{brand}_{name}_{i}"),
+         InlineKeyboardButton(text="right", callback_data=f"right_{brand}_{i}")
+         ],
+        [InlineKeyboardButton(text="back", callback_data=f"back_{brand}")]
+    ])
+    return mp
