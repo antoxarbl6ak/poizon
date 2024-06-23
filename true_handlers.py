@@ -29,6 +29,14 @@ class AddPair(StatesGroup):
 class Choose(StatesGroup):
     brand = State()
     name = State()
+    i = State()
+    size = State()
+    fio = State()
+    phone_number = State()
+    shipment = State()
+    city = State()
+    address = State()
+    screen = State()
 
 
 class Remove(StatesGroup):
@@ -68,13 +76,14 @@ async def catalog(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Choose.brand)
     await callback.message.answer("choose the brand",
                                   reply_markup=await kb.catalog_brands(db.sklad))
+    await callback.message.delete()
 
 
 @router.callback_query(F.data == "back_to_start")
 async def back_to_start(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.clear()
-    await cmd_start(callback.message)
+    await cmd_start(callback.message, state)
+    await callback.message.delete()
 
 
 @router.callback_query(F.data == "back_to_admin")
@@ -82,6 +91,21 @@ async def back_to_admin(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     await callback.message.edit_text("you opened admin panel", reply_markup=kb.admin)
+
+
+@router.callback_query(F.data.split('_')[0] == "BackToSneakers")
+async def back_to_sneakers(callback: CallbackQuery, state: FSMContext):
+    data = callback.data.split("_")
+    i = int(data[2])
+    await callback.answer()
+    await state.clear()
+    await state.update_data(brand=data[1])
+    await state.set_state(Choose.name)
+    await callback.message.answer_photo(**await db.choose_pair(data[1], i, "photo"),
+                                        reply_markup=await kb.move_pair(db.sklad[data[1]][i]["name"],
+                                                                        data[1], 0))
+    if callback.message.photo:
+        await callback.message.delete()
 
 
 @router.callback_query(F.data == "add_pair")
@@ -135,21 +159,22 @@ async def choose_pair(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Choose.name)
     await callback.message.answer_photo(** await db.choose_pair(callback.data, 0, "photo"),
                                         reply_markup=await kb.move_pair(db.sklad[callback.data][0]["name"], callback.data, 0))
+    await callback.message.delete()
 
 
 @router.callback_query(Choose.name)
 async def choose_pair_menu(callback: CallbackQuery, state: FSMContext):
     data = callback.data.split('_')
-    i = data[-1]
     if data[0] == "back":
         await state.clear()
         await catalog(callback, state)
     elif data[0] == "left" or data[0] == "right":
         await callback.answer()
+        i = int(data[-1])
         if data[0] == "left":
-            i = int(i) - 1
+            i = i - 1
         else:
-            i = int(i) + 1
+            i = i + 1
         if i == 0:
             pass
         elif i > 0:
@@ -159,7 +184,100 @@ async def choose_pair_menu(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_media(media=InputMediaPhoto(**await db.choose_pair(data[1], i, "media")),
                                           reply_markup=await kb.move_pair(db.sklad[data[1]][i]["name"], data[1], i))
     else:
-        pass
+        i = int(data[-1])
+        await callback.answer()
+        await state.update_data(name=data[1])
+        await state.set_state(Choose.size)
+        await callback.message.edit_caption(caption=f"{callback.message.text}\nchoose size",
+                                            reply_markup=await kb.get_sizes(db.sklad[data[0]][i]["sizes"], data[0], data[1], i))
+
+
+@router.callback_query(Choose.size)
+async def choose_pair_size(callback: CallbackQuery, state: FSMContext):
+    data = callback.data.split('_')
+    await callback.answer()
+    await state.update_data(size=data[2])
+    await state.update_data(i=data[3])
+    await state.set_state(Choose.fio)
+    await callback.message.answer("send your FIO", reply_markup=await kb.back_to_sneakers(data[0], data[3]))
+    await callback.message.delete()
+
+
+@router.message(Choose.fio)
+async def choose_pair_fio(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await state.update_data(fio=message.text)
+    await state.set_state(Choose.phone_number)
+    await message.answer("send your phone number", reply_markup=await kb.back_to_sneakers(data["brand"], data['i']))
+
+
+@router.message(Choose.phone_number)
+async def choose_pair_phone_number(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await state.update_data(phone_number=message.text)
+    await state.set_state(Choose.shipment)
+    await message.answer("which way you want shipment?",
+                         reply_markup=await kb.back_to_sneakers(data["brand"], data['i'], "ship"))
+
+
+@router.callback_query(Choose.shipment)
+async def choose_pair_shipment(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    data = await state.get_data()
+    await state.update_data(shipment=callback.data)
+    await state.set_state(Choose.city)
+    await callback.message.answer("send the city you at",
+                                  reply_markup=await kb.back_to_sneakers(data["brand"], data['i']))
+
+
+@router.message(Choose.city)
+async def choose_pair_city(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await state.update_data(city=message.text)
+    await state.set_state(Choose.address)
+    await message.answer("send address of your post",
+                         reply_markup=await kb.back_to_sneakers(data["brand"], data['i']))
+
+
+@router.message(Choose.address)
+async def choose_pair_shipment(message: Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    data = await state.get_data()
+    await message.answer(f"""is this data correct?\n
+    brand: {data['brand']}\n
+    name: {data['name']}\n
+    size: {data['size']}\n
+    fio: {data['fio']}\n
+    phone number: {data['phone_number']}\n
+    shipment: {data['shipment']}\n
+    city: {data['city']}\n
+    address: {data['address']}""",
+                         reply_markup=await kb.choose_pair_ensure(data["brand"], data['i']))
+
+
+@router.callback_query(F.data.split('_')[0] == "ChoosePairCorrect")
+async def choose_pair_correct(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    data = await state.get_data()
+    await state.set_state(Choose.screen)
+    await callback.message.answer("send us money and screen to proof",
+                                  reply_markup=await kb.back_to_sneakers(data["brand"], data['i']))
+
+
+@router.message(Choose.screen)
+async def choose_pair_screen(message: Message, state: FSMContext):
+    await state.update_data(screen=message.photo[-1].file_id)
+    data = await state.get_data()
+    await bot.send_photo(admin, data["screen"], caption=f"""somebody bought\n
+    brand: {data['brand']}\n
+    name: {data['name']}\n
+    size: {data['size']}\n
+    fio: {data['fio']}\n
+    phone number: {data['phone_number']}\n
+    shipment: {data['shipment']}\n
+    city: {data['city']}\n
+    address: {data['address']}""")
+    await message.answer("we sent your data to verify, you can write us, all contacts are in info:)")
 
 
 @router.message(AddPair.brand)
