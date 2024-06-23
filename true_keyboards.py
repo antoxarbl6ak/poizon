@@ -75,3 +75,10 @@ async def choose_pair_ensure(brand, i):
     cpe.add(InlineKeyboardButton(text="correct", callback_data=f"ChoosePairCorrect_{brand}_{i}"))
     cpe.add(InlineKeyboardButton(text="wrong", callback_data=f"BackToSneakers_{brand}_{i}"))
     return cpe.as_markup()
+
+
+async def verify_deal(user):
+    vd = InlineKeyboardBuilder()
+    vd.add(InlineKeyboardButton(text="verify", callback_data=f"verify_{user}"))
+    vd.add(InlineKeyboardButton(text="cancel", callback_data=f"cancel_{user}"))
+    return vd.as_markup()

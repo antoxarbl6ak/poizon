@@ -44,6 +44,12 @@ class Remove(StatesGroup):
     sizes = State()
 
 
+class Deal(StatesGroup):
+    user = State()
+    track = State()
+    refuse = State()
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
@@ -268,16 +274,57 @@ async def choose_pair_correct(callback: CallbackQuery, state: FSMContext):
 async def choose_pair_screen(message: Message, state: FSMContext):
     await state.update_data(screen=message.photo[-1].file_id)
     data = await state.get_data()
-    await bot.send_photo(admin, data["screen"], caption=f"""somebody bought\n
-    brand: {data['brand']}\n
-    name: {data['name']}\n
-    size: {data['size']}\n
-    fio: {data['fio']}\n
-    phone number: {data['phone_number']}\n
-    shipment: {data['shipment']}\n
-    city: {data['city']}\n
-    address: {data['address']}""")
+    await bot.send_message(admin, f"@{message.from_user.username} bought this? please admin it")
+    await bot.send_photo(admin, data["screen"], caption=f"""
+brand: {data['brand']}\n
+name: {data['name']}\n
+size: {data['size']}\n
+fio: {data['fio']}\n
+phone number: {data['phone_number']}\n
+shipment: {data['shipment']}\n
+city: {data['city']}\n
+address: {data['address']}""",
+                         reply_markup=await kb.verify_deal(message.from_user.id))
     await message.answer("we sent your data to verify, you can write us, all contacts are in info:)")
+    await state.clear()
+
+
+@router.callback_query(F.data.split('_')[0] == "verify")
+async def choose_pair_verify(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.update_data(user=callback.data.split('_')[1])
+    await state.set_state(Deal.track)
+    data = callback.message.caption.split('\n') + [f"screen: {callback.message.photo[-1].file_id}"]
+    data = [d for d in data if d]
+    await state.update_data({d.split(': ')[0]: d.split(': ')[1] for d in data})
+    await callback.message.answer("please make track to this deal")
+    await callback.message.delete()
+
+
+@router.message(Deal.track)
+async def choose_pair_track(message: Message, state: FSMContext):
+    await state.update_data(track=message.text)
+    data = await state.get_data()
+    await message.answer("info about deal and track num sent to customer, you can update states in admin panel")
+    await bot.send_message(data["user"], f"your deal was verified!!! track num is {data['track']}\nyou can watch state of your deal in shipment")
+    await db.add_deal(data)
+    await state.clear()
+
+
+@router.callback_query(F.data.split('_')[0] == "cancel")
+async def choose_pair_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.update_data(user=callback.data.split('_')[1])
+    await state.set_state(Deal.refuse)
+    await callback.message.answer("please send the reason of cancel, i will forward this to customer")
+    await callback.message.delete()
+
+
+@router.message(Deal.refuse)
+async def choose_pair_refuse(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await bot.send_message(data["user"], f"admin canceled the deal the reason is:\n{message.text}")
+    await state.clear()
 
 
 @router.message(AddPair.brand)
