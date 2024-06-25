@@ -44,6 +44,11 @@ cancel_deal_ensure = InlineKeyboardMarkup(inline_keyboard=[
      InlineKeyboardButton(text="no", callback_data="back_to_admin")]
 ])
 
+shipment = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="where is my package", callback_data="shipment_where")],
+    [InlineKeyboardButton(text="back", callback_data="back_to_start")]
+])
+
 
 async def catalog_brands(brands):
     kb = InlineKeyboardBuilder()

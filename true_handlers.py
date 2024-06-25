@@ -1,6 +1,6 @@
 from aiogram import F, Router, Bot
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, CallbackQuery, InputMediaPhoto
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto, BotCommand, BotCommandScopeDefault, BotCommandScopeChat
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from os import getenv
@@ -73,7 +73,24 @@ async def get_info(callback: CallbackQuery):
 async def shipment(callback: CallbackQuery):
     await callback.answer()
     await callback.message.edit_text("our shipment is the fastest, cause Usain Bolt is our courier",
-                                     reply_markup=kb.back_to_start)
+                                     reply_markup=kb.shipment)
+
+
+@router.callback_query(F.data == "shipment_where")
+async def shipment_get_track(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(State("shipment_track"))
+    await callback.message.edit_text("send track num of package you wanna track", reply_markup=kb.back_to_start)
+
+
+@router.message(State("shipment_track"))
+async def shipment_data(message: Message, state: FSMContext):
+    await state.update_data(track=message.text)
+    data = await state.get_data()
+    try:
+        await message.answer(f'here is what i found:\n{db.deals[data["track"]]["data"]}', reply_markup=kb.back_to_start)
+    except KeyError:
+        await message.answer("I couldn\'t find deal for this track num", reply_markup=kb.back_to_start)
 
 
 @router.callback_query(F.data == "catalog")
@@ -169,11 +186,9 @@ async def update_data_new(message: Message, state: FSMContext):
     data = await state.get_data()
     try:
         await db.new_data_deal(data["track"], data["new"])
-        await message.answer("deal was successfully updated")
-        await message.answer("you opened admin panel", reply_markup=kb.admin)
+        await message.answer("deal was successfully updated", reply_markup=kb.back_to_admin)
     except KeyError:
-        await message.answer("I couldn\'t find deal for this track")
-        await message.answer("you opened admin panel", reply_markup=kb.admin)
+        await message.answer("I couldn\'t find deal for this track", reply_markup=kb.back_to_admin)
 
 
 @router.callback_query(F.data == "close_deal")
@@ -208,6 +223,43 @@ async def remove_pair_actually(message: Message, state: FSMContext):
     await message.answer(await db.remove_pair(**await state.get_data()))
     await state.clear()
     await message.answer("you opened admin panel", reply_markup=kb.admin)
+
+
+@router.message(AddPair.brand)
+async def add_pair2(message: Message, state: FSMContext):
+    await state.update_data(brand=message.text)
+    await state.set_state(AddPair.name)
+    await message.answer("name?", reply_markup=kb.back_to_admin)
+
+
+@router.message(AddPair.name)
+async def add_pair2(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(AddPair.photo)
+    await message.answer("photo?", reply_markup=kb.back_to_admin)
+
+
+@router.message(AddPair.photo)
+async def add_pair2(message: Message, state: FSMContext):
+    await state.update_data(photo=message.photo[-1].file_id)
+    await state.set_state(AddPair.price)
+    await message.answer("price?", reply_markup=kb.back_to_admin)
+
+
+@router.message(AddPair.price)
+async def add_pair2(message: Message, state: FSMContext):
+    await state.update_data(price=message.text)
+    await state.set_state(AddPair.sizes)
+    await message.answer("sizes in EU?", reply_markup=kb.back_to_admin)
+
+
+@router.message(AddPair.sizes)
+async def add_pair2(message: Message, state: FSMContext):
+    await state.update_data(sizes=message.text.split())
+    data = await state.get_data()
+    await message.answer_photo(photo=data["photo"],
+                               caption=f"{data['brand']}\n{data['name']}: {data['price']}\nsizes in stock: {' '.join(data['sizes'])}",
+                               reply_markup=kb.add_pair_ensure)
 
 
 @router.callback_query(Choose.brand)
@@ -378,40 +430,3 @@ async def choose_pair_refuse(message: Message, state: FSMContext):
     data = await state.get_data()
     await bot.send_message(data["user"], f"admin canceled the deal the reason is:\n{message.text}")
     await state.clear()
-
-
-@router.message(AddPair.brand)
-async def add_pair2(message: Message, state: FSMContext):
-    await state.update_data(brand=message.text)
-    await state.set_state(AddPair.name)
-    await message.answer("name?", reply_markup=kb.back_to_admin)
-
-
-@router.message(AddPair.name)
-async def add_pair2(message: Message, state: FSMContext):
-    await state.update_data(name=message.text)
-    await state.set_state(AddPair.photo)
-    await message.answer("photo?", reply_markup=kb.back_to_admin)
-
-
-@router.message(AddPair.photo)
-async def add_pair2(message: Message, state: FSMContext):
-    await state.update_data(photo=message.photo[-1].file_id)
-    await state.set_state(AddPair.price)
-    await message.answer("price?", reply_markup=kb.back_to_admin)
-
-
-@router.message(AddPair.price)
-async def add_pair2(message: Message, state: FSMContext):
-    await state.update_data(price=message.text)
-    await state.set_state(AddPair.sizes)
-    await message.answer("sizes in EU?", reply_markup=kb.back_to_admin)
-
-
-@router.message(AddPair.sizes)
-async def add_pair2(message: Message, state: FSMContext):
-    await state.update_data(sizes=message.text.split())
-    data = await state.get_data()
-    await message.answer_photo(photo=data["photo"],
-                               caption=f"{data['brand']}\n{data['name']}: {data['price']}\nsizes in stock: {' '.join(data['sizes'])}",
-                               reply_markup=kb.add_pair_ensure)
