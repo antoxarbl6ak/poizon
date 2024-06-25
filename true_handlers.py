@@ -143,6 +143,58 @@ async def remove_pair_request(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("send name of pair as in catalog")
 
 
+@router.callback_query(F.data == "deals")
+async def deals(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(State("get_track"))
+    await callback.message.edit_text("send track num of deal you wanna work with", reply_markup=kb.back_to_admin)
+
+
+@router.message(State("get_track"))
+async def update_data_track(message: Message, state: FSMContext):
+    await state.update_data(track=message.text)
+    await message.answer("choose what you wanna do with deal", reply_markup=kb.work_deal)
+
+
+@router.callback_query(F.data == "update_data")
+async def update_data(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(State("new"))
+    await callback.message.answer("send new data for this deal", reply_markup=kb.back_to_admin)
+
+
+@router.message(State("new"))
+async def update_data_new(message: Message, state: FSMContext):
+    await state.update_data(new=message.text)
+    data = await state.get_data()
+    try:
+        await db.new_data_deal(data["track"], data["new"])
+        await message.answer("deal was successfully updated")
+        await message.answer("you opened admin panel", reply_markup=kb.admin)
+    except KeyError:
+        await message.answer("I couldn\'t find deal for this track")
+        await message.answer("you opened admin panel", reply_markup=kb.admin)
+
+
+@router.callback_query(F.data == "close_deal")
+async def close_deal(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.edit_text("are you sure?", reply_markup=kb.cancel_deal_ensure)
+
+
+@router.callback_query(F.data == "close_deal_yes")
+async def close_deal_yes(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    data = await state.get_data()
+    try:
+        await db.close_deal(data["track"])
+        await callback.message.answer("deal was successfully closed")
+        await callback.message.answer("you opened admin panel", reply_markup=kb.admin)
+    except KeyError:
+        await callback.message.answer("I couldn\'t find deal for this track")
+        await callback.message.answer("you opened admin panel", reply_markup=kb.admin)
+
+
 @router.message(Remove.product)
 async def remove_pair_choose(message: Message, state: FSMContext):
     await state.update_data(product=message.text)
@@ -307,6 +359,7 @@ async def choose_pair_track(message: Message, state: FSMContext):
     data = await state.get_data()
     await message.answer("info about deal and track num sent to customer, you can update states in admin panel")
     await bot.send_message(data["user"], f"your deal was verified!!! track num is {data['track']}\nyou can watch state of your deal in shipment")
+    await bot.send_message(data["user"], "hello, this is our sneakers shop!", reply_markup=kb.start)
     await db.add_deal(data)
     await state.clear()
 

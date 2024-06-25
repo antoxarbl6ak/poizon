@@ -15,7 +15,8 @@ back_to_start = InlineKeyboardMarkup(inline_keyboard=[
 
 admin = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="add pair", callback_data="add_pair"),
-     InlineKeyboardButton(text="remove pair", callback_data="remove_pair")]
+     InlineKeyboardButton(text="remove pair", callback_data="remove_pair")],
+    [InlineKeyboardButton(text="update data", callback_data="deals")]
 ])
 
 back_to_admin = InlineKeyboardMarkup(inline_keyboard=[
@@ -30,6 +31,17 @@ add_pair_ensure = InlineKeyboardMarkup(inline_keyboard=[
 sdek_or_prf = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="сдэк", callback_data="sdek"),
      InlineKeyboardButton(text="почта россии", callback_data="prf")]
+])
+
+work_deal = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="update data", callback_data="update_data"),
+     InlineKeyboardButton(text="close the deal", callback_data="close_deal")],
+    [InlineKeyboardButton(text="back", callback_data="back_to_admin")]
+])
+
+cancel_deal_ensure = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="yes", callback_data="close_deal_yes"),
+     InlineKeyboardButton(text="no", callback_data="back_to_admin")]
 ])
 
 

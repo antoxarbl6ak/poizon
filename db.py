@@ -59,5 +59,15 @@ async def choose_pair(brand, i, mode):
 
 
 async def add_deal(data):
-    deals[data.pop("track")] = data
-    await upload("deal")
+    deals[data.pop("track")] = data | {"data": "nothing for now:("}
+    await upload("deals")
+
+
+async def close_deal(track):
+    deals.pop(track)
+    await upload("deals")
+
+
+async def new_data_deal(track, new):
+    deals[track]["data"] = new
+    await upload("deals")
